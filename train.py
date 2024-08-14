@@ -64,25 +64,24 @@ def train(config=MASTER_CONFIG):
         optimizer.zero_grad()
         i = 0
         for batch in train_dataloader:
-            # x, y = train_example[0], train_example[1]
-            # x = x.to(device)
-            # y = y.to(device)
-            # # Forward pass
-            # y_pred = model(x)
-            # print(x.shape, y.shape, y_pred.shape)
-            # break
-            # loss = criterion(y_pred, y)
-            # # Backward pass
-            # loss.backward()
-            # # Update the weights
-            # optimizer.step()
-            # if scheduler is not None:
-            #     scheduler.step()
-            # i += 1
-            # print(f'Epoch {epoch}, Batch {i}, Loss {loss.item()}')
-        # val_loss = evaluate_loss(model, config)
-        # print(f'Epoch {epoch + 1}, Validation Loss {val_loss}')
+            x, y = train_example[0], train_example[1]
+            x = x.to(device)
+            y = y.to(device)
+            # Forward pass
+            y_pred = model(x)
+            print(x.shape, y.shape, y_pred.shape)
+            loss = criterion(y_pred, y)
+            # Backward pass
+            loss.backward()
+            # Update the weights
+            optimizer.step()
+            if scheduler is not None:
+                scheduler.step()
+            i += 1
+            print(f'Epoch {epoch}, Batch {i}, Loss {loss.item()}')
             break
+        val_loss = evaluate_loss(model, config)
+        print(f'Epoch {epoch + 1}, Validation Loss {val_loss}')
         break
 
 def main():
