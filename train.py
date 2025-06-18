@@ -1,91 +1,124 @@
 import torch
-from torch import nn
-from torch.nn import functional as F
-import numpy as np
-from matplotlib import pyplot as plt
-import pandas as pd
-from dataset.dataset import VQADataset
-from torch.utils.data import DataLoader
-from cfg.cfg import MASTER_CONFIG
-from nets.net import LLaMANetwork
-import time
-import tiktoken
+import torch.nn.functional as F
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-    print('Using GPU')
-else:
-    device = torch.device("cpu")
-    print('Using CPU')
+from nets.net import DemoModel
+from nets.llama3 import Llama3
+from nets.llama3_d import Llama3_D
+from utils.tokenizer import Tokenizer
+
+CONFIG = {
+    "batch_size": 1,
+    "max_sequence": 512,
+    "emb_dim": 512,  
+    "num_head": 8,
+    "dropout_rate": 0.1,
+    "enc_num_block": 6,
+    "decoder_num_block": 6,
+    "input_mask": None,
+    "output_mask": None,
+    "vocab_size": 200019
+}
+
+Llama3_CONFIG = {
+    "batch_size": 1,
+    "max_sequence": 512,
+    "emb_dim": 512,  
+    "num_head": 8,
+    "dropout_rate": 0.1,
+    "num_block": 6,
+    "input_mask": None,
+    "output_mask": None,
+    "vocab_size": 200019,
+}
+
+Llama3_D_CONFIG = {
+    "batch_size": 1,
+    "max_sequence": 128,
+    "out_max_sequence": 256,
+    "emb_dim": 512,  
+    "num_head": 8,
+    "dropout_rate": 0.1,
+    "num_block": 6,
+    "input_mask": None,
+    "output_mask": None,
+    "vocab_size": 200019,
+    "output_window": 512 # this is for diffusion output experiment
+}
+
+torch.manual_seed(10)
+torch.set_default_dtype(torch.bfloat16)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-@torch.no_grad()  # Don't compute gradients for this function
-def evaluate_loss(model: nn.Module, config=MASTER_CONFIG, val_dataset=None):
-    loss_l = []
-    # Set the model to evaluation mode
-    model.eval()
+sentences = ["User: What is the capital of France? Assistant: The capital of France is Paris.", "User: Can you tell me about the Eiffel Tower? Assistant: The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars in Paris."]
+tokenizer = Tokenizer(model_name='o200k_base', max_sequence=Llama3_D_CONFIG["max_sequence"])
+# print(tokenizer.encode("<|pad|>"))
+# print(tokenizer.decode([199999]))
+print(f"Special token set: {tokenizer.special_tokens_set}")
+print(f"Vocab size: {tokenizer.vocab_size}")
+tokenized_sentences = [tokenizer.encode(sentence) for sentence in sentences]
+# print(f"Tokenized sentences: {tokenized_sentences}\n")
 
-    for val_example in val_dataset:
-        x, y = val_example
-        x = x.to(device)
-        y = y.to(device)
-        # Forward pass
-        y_pred = model(x)
-        # Compute the loss
-        loss = F.cross_entropy(y_pred.view(-1, y_pred.size(-1)), y.view(-1))
-        loss_l.append(loss.item())
 
-    return np.mean(loss_l)
 
-def train(config=MASTER_CONFIG):
-    batch_size = 2
-    train_dataset = VQADataset("/home/yuxin/Documents/LLMBase/dataset/task_planning.json")
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    # Define model parameters
-    vocab_size = tiktoken.get_encoding('cl100k_base').n_vocab  # Size of the vocabulary
-    d_model = 512  # Dimension of the model
-    num_layers = 6  # Number of encoder layers
-    num_heads = 8  # Number of attention heads
-    d_ff = 2048  # Dimension of feed-forward network
-    max_len = 5000  # Maximum sequence length
-    dropout = 0.1  # Dropout rate
-    # Initialize the model
-    model = LLaMANetwork(vocab_size, d_model, num_layers, num_heads, d_ff, max_len, dropout).to(device)
+# batch_size, max_sequence, emb_dim, num_head, dropout_rate, enc_num_block, decoder_num_block, input_mask, output_mask, vocab_size = (
+#     CONFIG["batch_size"],
+#     CONFIG["max_sequence"],
+#     CONFIG["emb_dim"],
+#     CONFIG["num_head"],
+#     CONFIG["dropout_rate"],
+#     CONFIG["enc_num_block"],
+#     CONFIG["decoder_num_block"],
+#     CONFIG["input_mask"],
+#     CONFIG["output_mask"],
+#     CONFIG["vocab_size"]
+# )
+# model = Llama3(Llama3_CONFIG).to(device)
+# print(f"Model: {model}\n")
 
-    # Initialize the optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    # Initialize the loss function
-    criterion = nn.CrossEntropyLoss()
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
-    start_time = time.time()
+model = Llama3_D(Llama3_D_CONFIG).to(device)
+# print(model)
+output: torch.Tensor = model(torch.tensor(tokenized_sentences).to(device))
+print(f"Llama_D model: output size: {output.size()}")
 
-    for epoch in range(config['epochs']):
-        model.train()
-        optimizer.zero_grad()
-        i = 0
-        for batch in train_dataloader:
-            x, y = train_example[0], train_example[1]
-            x = x.to(device)
-            y = y.to(device)
-            # Forward pass
-            y_pred = model(x)
-            print(x.shape, y.shape, y_pred.shape)
-            loss = criterion(y_pred, y)
-            # Backward pass
-            loss.backward()
-            # Update the weights
-            optimizer.step()
-            if scheduler is not None:
-                scheduler.step()
-            i += 1
-            print(f'Epoch {epoch}, Batch {i}, Loss {loss.item()}')
-            break
-        val_loss = evaluate_loss(model, config)
-        print(f'Epoch {epoch + 1}, Validation Loss {val_loss}')
-        break
 
-def main():
-    train()
 
-if __name__ == "__main__":
-    main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# torch.cuda.empty_cache()  # Clear GPU memory before running the model
+
+# B, S, E = CONFIG["batch_size"], CONFIG["max_sequence"], CONFIG["emb_dim"]
+# memory_before = torch.cuda.memory_allocated()
+# input_embeddings = torch.randn((B, S, E)).to(device)
+# tgt_embeddings = torch.randn((B, S, E)).to(device)
+# print(f"GPU memory for input and target: {(torch.cuda.memory_allocated() - memory_before)/1e6} Mb")
+
+# print(f"Input size: {input_embeddings.size()}\n")
+
+# memory_before = torch.cuda.memory_allocated()
+# with torch.no_grad():
+#     attention = Transformer_Block(CONFIG["emb_dim"], CONFIG["num_head"], CONFIG["max_sequence"], CONFIG["dropout_rate"], CONFIG["enc_num_block"], CONFIG["decoder_num_block"], CONFIG["input_mask"], CONFIG["output_mask"], CONFIG["vocab_size"]).to(device)
+#     print(f"GPU memory for model: {(torch.cuda.memory_allocated() - memory_before)/1e6} Mb")
+#     output = attention(input_embeddings, tgt_embeddings)
+#     output = F.softmax(output, dim=-1)  # Apply softmax to the output
+#     print(f"GPU memory for forward pass: {(torch.cuda.max_memory_allocated() - memory_before)/1e6} Mb")
+
+
+# print(f"Output size: {output.size()}  {output.dtype}\n{output[0][0][:8]}")
