@@ -9,7 +9,7 @@ class Tokenizer(tiktoken.Encoding):
         self.tokenizer = tiktoken.Encoding(
         # If you're changing the set of special tokens, make sure to use a different name
         # It should be clear from the name what behaviour to expect.
-            name="o200k_base",
+            name="o200k_lm",
             pat_str=o200k_base._pat_str,
             mergeable_ranks=o200k_base._mergeable_ranks,
             special_tokens={

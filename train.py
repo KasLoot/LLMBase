@@ -32,18 +32,19 @@ Llama3_CONFIG = {
 }
 
 Llama3_D_CONFIG = {
-    "batch_size": 1,
-    "max_sequence": 128,
-    "out_max_sequence": 256,
-    "emb_dim": 512,  
-    "num_head": 8,
+    "batch_size": 16,
+    "max_sequence": 1024,
+    "out_max_sequence": 2048,
+    "emb_dim": 5120,  
+    "num_head": 16,
     "dropout_rate": 0.1,
-    "num_block": 6,
+    "num_block": 32,
     "input_mask": None,
     "output_mask": None,
     "vocab_size": 200019,
-    "output_window": 512 # this is for diffusion output experiment
 }
+
+print(Llama3_D_CONFIG)
 
 torch.manual_seed(10)
 torch.set_default_dtype(torch.bfloat16)
@@ -76,11 +77,34 @@ tokenized_sentences = [tokenizer.encode(sentence) for sentence in sentences]
 # )
 # model = Llama3(Llama3_CONFIG).to(device)
 # print(f"Model: {model}\n")
-
+memory = torch.cuda.memory_allocated()
 model = Llama3_D(Llama3_D_CONFIG).to(device)
-# print(model)
-output: torch.Tensor = model(torch.tensor(tokenized_sentences).to(device))
-print(f"Llama_D model: output size: {output.size()}")
+model_memory = torch.cuda.memory_allocated() - memory
+print(f"Model memory usage: {model_memory / 1e6} Mb")
+print(model)
+
+# Forward Pass
+memory = torch.cuda.memory_allocated()
+outputs: torch.Tensor = model(torch.tensor(tokenized_sentences).to(device))
+print(f"Llama_D model: output size: {outputs.size()}")
+outputs = F.softmax(outputs, dim=-1)
+outputs = torch.argmax(outputs, dim=-1).tolist()  # Get the index of the maximum value in the last dimension
+forward_pass_memory = torch.cuda.max_memory_allocated() - memory
+print(f"Forward pass memory usage: {forward_pass_memory / 1e6} Mb")
+
+i = 0
+for batch in outputs:
+    print(f"Batch {i+1} outputs:")
+    for output in batch:
+        # print(output)
+        try:
+            print(tokenizer.decode([output]), end="")
+        except Exception as e:
+            print(f"<|Invalid Token|>", end="")
+    print("\n")
+    i += 1
+
+
 
 
 
