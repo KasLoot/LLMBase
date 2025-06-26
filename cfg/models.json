@@ -1,0 +1,18 @@
+[
+    {
+        "model_name": "DemoModel",
+        "model_type": [
+            "Text Generation"
+        ],
+        "description": "A simple demonstration model",
+        "card_image": "./models/assets/DemoModel_cover.png"
+    },
+    {
+        "model_name": "DemoModel_2",
+        "model_type": [
+            "Image Classification",
+            "Image Segmentation"
+        ],
+        "description": "Another simple demonstration model 2. This one has a longer description to test the text wrapping in the UI. Another simple demonstration model 2. This one has a longer description to test the text wrapping in the UI. Another simple demonstration model 2. This one has a longer description to test the text wrapping in the UI. Another simple demonstration model 2. This one has a longer description to test the text wrapping in the UI. Another simple demonstration model 2. This one has a longer description to test the text wrapping in the UI."
+    }
+]
