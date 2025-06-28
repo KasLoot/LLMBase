@@ -192,10 +192,15 @@ def model_builder_page(model_name: str):
             module_list.visible = False
         function_list.visible = not function_list.visible
 
+    
+    def handle_module_click(module):
+        module_name = module['name']
+
+
     with ui.row().style('padding-left: 20px; padding-top: 20px; padding-bottom: 20px; align-items: center; gap: 20px;'):
         ui.image("webui/assets/back.svg").style('width: 30px; height: 30px; cursor: pointer;') \
             .on('click', lambda: ui.navigate.to('/'))
-        ui.label("Model Builder").classes('text-4xl')
+        ui.label(f"Model Builder/{model_name}").classes('text-4xl')
     with ui.column().style('position: fixed; left: 20px; top: 25%; transform: translateY(-50%);'):
         ui.button("M", on_click=handle_module_list).style('width: 50px; height: 50px; border-radius: 25px;').props('outline="none"')
         ui.button("F", on_click=handle_function_list).style('width: 50px; height: 50px; border-radius: 25px;').props('outline="none"')

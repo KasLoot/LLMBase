@@ -1,3 +1,5 @@
-# LLMBase
+# LLMBase - Build, Train and Test Your Model with Ease
 
-This GitHub repository is used to collect model structures and ideas.
+LLMBase enables low to zero coding to build various models with visual graphical interface.
+
+
