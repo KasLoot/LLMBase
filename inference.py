@@ -32,10 +32,10 @@ Llama3_CONFIG = {
 }
 
 Llama3_D_CONFIG = {
-    "batch_size": 16,
-    "max_sequence": 1024,
-    "out_max_sequence": 2048,
-    "emb_dim": 5120,  
+    "batch_size": 2,
+    "max_sequence": 128,
+    "out_max_sequence": 256,
+    "emb_dim": 512,  
     "num_head": 16,
     "dropout_rate": 0.1,
     "num_block": 32,
@@ -49,8 +49,8 @@ print(Llama3_D_CONFIG)
 torch.manual_seed(10)
 torch.set_default_dtype(torch.bfloat16)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
+device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+print(f"Using device: {device}")
 
 sentences = ["User: What is the capital of France? Assistant: The capital of France is Paris.", "User: Can you tell me about the Eiffel Tower? Assistant: The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars in Paris."]
 tokenizer = Tokenizer(model_name='o200k_base', max_sequence=Llama3_D_CONFIG["max_sequence"])
