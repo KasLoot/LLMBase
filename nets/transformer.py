@@ -18,26 +18,7 @@ class Embedder(nn.Module):
         return self.dropout(self.embedding_layer(x))
     
 
-def RotaryPositionEmbedding(CFG):
-    emb_dim = CFG["emb_dim"]
-    seq_len = CFG["max_sequence"]
-    positions = torch.arange(seq_len).unsqueeze(0).transpose(-1, 0)
-    # print(positions.shape)
-    theta = torch.exp(torch.arange(0, emb_dim, 2) * -(math.log(10000)/emb_dim))
-    angles = positions * theta
-    # print(positions.shape, theta.shape, angles.shape)
 
-    sine_angles = torch.sin(angles)
-    cos_angles = torch.cos(angles)
-
-    rotary_matrix = torch.zeros((seq_len, emb_dim, emb_dim))
-
-    rotary_matrix[:, torch.arange(0, emb_dim, 2), torch.arange(0, emb_dim, 2)] = cos_angles
-    rotary_matrix[:, torch.arange(0, emb_dim, 2), torch.arange(1, emb_dim, 2)] = -sine_angles
-    rotary_matrix[:, torch.arange(1, emb_dim, 2), torch.arange(0, emb_dim, 2)] = sine_angles
-    rotary_matrix[:, torch.arange(1, emb_dim, 2), torch.arange(1, emb_dim, 2)] = cos_angles
-
-    return rotary_matrix
 
 
 
@@ -55,25 +36,64 @@ class MultiHeadAttention(nn.Module):
         self.Q = nn.Linear(self.CFG["emb_dim"], self.CFG["emb_dim"])
         self.K = nn.Linear(self.CFG["emb_dim"], self.CFG["emb_dim"])
         self.V = nn.Linear(self.CFG["emb_dim"], self.CFG["emb_dim"])
-        self.rotary_matrix = RotaryPositionEmbedding(self.CFG)
+        self.rotary_matrix = self.RotaryPositionEmbedding(self.CFG)
+
+
+    def RotaryPositionEmbedding(self, CFG):
+        emb_dim = CFG["emb_dim"]
+        seq_len = CFG["max_sequence"]
+        positions = torch.arange(seq_len).unsqueeze(0).transpose(-1, 0)
+        # print(positions.shape)
+        theta = torch.exp(torch.arange(0, emb_dim, 2) * -(math.log(10000)/emb_dim))
+        angles = positions * theta
+        # print(positions.shape, theta.shape, angles.shape)
+
+        sine_angles = torch.sin(angles)
+        cos_angles = torch.cos(angles)
+
+        rotary_matrix = torch.zeros((seq_len, emb_dim, emb_dim))
+
+        rotary_matrix[:, torch.arange(0, emb_dim, 2), torch.arange(0, emb_dim, 2)] = cos_angles
+        rotary_matrix[:, torch.arange(0, emb_dim, 2), torch.arange(1, emb_dim, 2)] = -sine_angles
+        rotary_matrix[:, torch.arange(1, emb_dim, 2), torch.arange(0, emb_dim, 2)] = sine_angles
+        rotary_matrix[:, torch.arange(1, emb_dim, 2), torch.arange(1, emb_dim, 2)] = cos_angles
+
+        # Register as buffer so it moves with the model to the correct device
+        self.register_buffer('rotary_matrix_buffer', rotary_matrix)
+        return rotary_matrix
+
 
     def split_heads(self, x:torch.Tensor):
         B, S, D = x.size()
-        assert B == self.CFG["batch_size"], "[Attention Module] unmatched batch size"
-        assert S == self.CFG["max_sequence"], "[Attention Module] unmatched sequence length"
-        assert D == self.CFG["emb_dim"], "[Attention Module] unmatched embedding dimention"
+        # Remove assertions that are too rigid - the model should be flexible with batch sizes
+        # assert B == self.CFG["batch_size"], "[Attention Module] unmatched batch size"
+        # assert S == self.CFG["max_sequence"], "[Attention Module] unmatched sequence length"
+        assert D == self.CFG["emb_dim"], "[Attention Module] unmatched embedding dimension"
 
-        return x.view(B, S, self.CFG["num_heads"], self.d_k).transpose(1, 2)
+        return x.view(B, S, self.CFG["num_head"], self.d_k).transpose(1, 2)
     
     def attention_score(self, x_q:torch.Tensor, x_k:torch.Tensor, x_v:torch.Tensor):
-        print(x_q.shape, self.rotary_matrix.shape)
-        x_q = self.split_heads(self.Q(torch.dot(x_q, self.rotary_matrix)))
-        x_k = self.split_heads(self.K(torch.dot(x_k, self.rotary_matrix)))
-        x_v = self.split_heads(self.K(x_v))
-        score = torch.matmul(x_q, x_k.transpose(-1, -2)/math.sqrt(self.d_k))
+        # Get sequence length for indexing rotary matrix
+        seq_len = x_q.size(1)
+        
+        # Apply rotary position embedding using matrix multiplication instead of dot product
+        # Use the registered buffer which will be on the correct device
+        rotary_matrix = self.rotary_matrix_buffer[:seq_len]  # Get relevant portion
+        
+        # Apply rotary embedding: (B, S, D) @ (S, D, D) -> (B, S, D)
+        x_q_rotary = torch.einsum('bsd,sde->bse', x_q, rotary_matrix)
+        x_k_rotary = torch.einsum('bsd,sde->bse', x_k, rotary_matrix)
+        
+        # Apply linear transformations and split heads
+        x_q = self.split_heads(self.Q(x_q_rotary))
+        x_k = self.split_heads(self.K(x_k_rotary))
+        x_v = self.split_heads(self.V(x_v))  # Fixed: was using self.K instead of self.V
+        
+        # Compute attention scores
+        score = torch.matmul(x_q, x_k.transpose(-1, -2)) / math.sqrt(self.d_k)
 
         mask = self.CFG["attention_mask"]
-        if mask:
+        if mask is not None:
             score = score.masked_fill(mask=mask, value=-1e-9)
         
         return torch.matmul(F.softmax(score, dim=-1), x_v)
@@ -81,7 +101,12 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, x_q, x_k, x_v):
         x = self.attention_score(x_q, x_k, x_v)
-        x = x.transpose(1, 2).contiguous().view(self.CFG["batch_size"], self.CFG["max_sequence"], self.CFG["emb_dim"])
+        # Get actual dimensions from input tensor instead of using fixed config values
+        batch_size, seq_len = x_q.size(0), x_q.size(1)
+        print(batch_size, seq_len, self.CFG["max_sequence"])
+        x = x.transpose(1, 2).contiguous().view(batch_size, seq_len, self.CFG["emb_dim"])
+        # x = x.transpose(1, 2).contiguous().view(self.CFG["batch_size"], self.CFG["max_sequence"], self.CFG["emb_dim"])
+
         return x
 
 
@@ -124,18 +149,18 @@ class TestModel(nn.Module):
         x = self.embed_layer(x)
         for layer in self.att_blocks:
             x = layer(x)
-        x = F.softmax(self.post_linear(self.post_rms(x)))
+        x = F.softmax(self.post_linear(self.post_rms(x)), dim=-1)
 
         return x
 
 
 
-emb_d = 16
+emb_d = 512
 ffw_hid = emb_d * 2
 
 TestModel_CONFIG = {
     "batch_size": 1,
-    "max_sequence": 512,
+    "max_sequence": 1024,
     "emb_dim": emb_d,  
     "num_head": 2,
     "dropout_rate": 0.1,
@@ -175,19 +200,4 @@ print(model)
 memory = torch.cuda.memory_allocated()
 outputs: torch.Tensor = model(torch.tensor(tokenized_sentences).to(device))
 print(f"Llama_D model: output size: {outputs.size()}")
-outputs = F.softmax(outputs, dim=-1)
-outputs = torch.argmax(outputs, dim=-1).tolist()  # Get the index of the maximum value in the last dimension
-forward_pass_memory = torch.cuda.max_memory_allocated() - memory
-print(f"Forward pass memory usage: {forward_pass_memory / 1e6} Mb")
 
-i = 0
-for batch in outputs:
-    print(f"Batch {i+1} outputs:")
-    for output in batch:
-        # print(output)
-        try:
-            print(tokenizer.decode([output]), end="")
-        except Exception as e:
-            print(f"<|Invalid Token|>", end="")
-    print("\n")
-    i += 1
