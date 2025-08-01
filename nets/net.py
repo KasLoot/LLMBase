@@ -21,23 +21,23 @@ class Positional_Embedding(nn.Module):
         super(Positional_Embedding, self).__init__()
         self.dropout = nn.Dropout(dropout_rate)
         position = torch.arange(0, max_sequence, dtype=torch.bfloat16).unsqueeze(1) # This dtype is not affected by the global dtype setting
-        position_encoding = torch.zeros(max_sequence, emb_dim)
+        self.position_encoding = torch.zeros(max_sequence, emb_dim)
         div_term = torch.exp(torch.arange(0, emb_dim, 2, dtype=torch.bfloat16)* -math.log(10000.0)/emb_dim)
 
         # Apply sin to even indices (0, 2, 4, ...)
-        position_encoding[:, 0::2] = torch.sin(position * div_term)
+        self.position_encoding[:, 0::2] = torch.sin(position * div_term)
 
         # Apply cos to odd indices (1, 3, 5, ...)
-        position_encoding[:, 1::2] = torch.cos(position * div_term)
+        self.position_encoding[:, 1::2] = torch.cos(position * div_term)
 
-        position_encoding = position_encoding.unsqueeze(0)
+        self.position_encoding = self.position_encoding.unsqueeze(0)
 
         # Register 'pe' as a buffer. Buffers are part of the model's state,
         # but they are not considered model parameters to be trained.
-        self.register_buffer('position_encoding', position_encoding)
+        self.register_buffer('position_encoding_buffer', self.position_encoding)
 
     def forward(self, x):
-        x = self.dropout(x + self.position_encoding[:, :x.size(1)])
+        x = self.dropout(x + self.position_encoding_buffer[:, :x.size(1)])
         return x
 
 

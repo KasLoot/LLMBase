@@ -8,6 +8,7 @@ import numpy as np
 from utils.tokenizer import Tokenizer
 
 
+
 class Embedder(nn.Module):
     def __init__(self, CFG):
         super().__init__()

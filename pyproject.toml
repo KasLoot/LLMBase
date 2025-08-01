@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.12.3",
     "nicegui>=2.20.0",
     "pillow>=11.2.1",
     "replicate>=1.0.7",
