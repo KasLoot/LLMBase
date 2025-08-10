@@ -16,17 +16,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 
-
-
-
-
-
-dummy_train_text = [["Hello, this is Steven, how are you?"],
-                    ["This is an apple."],
-                    ["There are 3 chilren achieved 1003842 score on the leaderboard"]]
-
-
-
 def train():
 
     CFG = ModelConfig()
@@ -45,8 +34,17 @@ def train():
     # print(f"targets shape: {targets.shape}, contigous: {targets.is_contiguous()}\n{targets[0]}")
 
     
-
+    prev_momory = torch.cuda.memory_allocated()
     model = MiniChat(CFG=CFG).to(device=device)
+    momory_after = torch.cuda.memory_allocated()
+    print(f"total memory use for loading model: {(momory_after - prev_momory)/1e6} Mb, {(momory_after - prev_momory)/1e9} Gb")
+
+    total_params = 0
+
+    for parameter in model.parameters():
+        total_params += parameter.numel()
+
+    print(f"model parameters: {total_params/1e9} B")
 
     optmizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
@@ -56,8 +54,8 @@ def train():
     for epoch in tqdm(range(20)):
         for batch in tqdm(train_data_loader):
             inputs, targets = batch
-            inputs = inputs.to(device)
-            targets = targets.to(device)
+            inputs: torch.Tensor = inputs.to(device)
+            targets: torch.Tensor = targets.to(device)
             optmizer.zero_grad()
             logits: torch.Tensor = model(inputs)  # Raw logits from model
             print(logits.shape)
