@@ -192,7 +192,7 @@ class Transformer(nn.Module):
         return x
 
 
-class DemoTextModel(nn.Module):
+class MiniChat(nn.Module):
     def __init__(self, CFG: ModelConfig):
         super().__init__()
         self.d_model = CFG.d_model

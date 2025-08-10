@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from nets.demo_model.model import DemoTextModel
+from nets.demo_model.model import MiniChat
 
 from utils.tokenizer import get_tokenizer
 
@@ -46,7 +46,7 @@ def train():
 
     
 
-    model = DemoTextModel(CFG=CFG).to(device=device)
+    model = MiniChat(CFG=CFG).to(device=device)
 
     optmizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
