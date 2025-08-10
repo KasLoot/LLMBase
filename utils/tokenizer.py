@@ -1,40 +1,30 @@
 import tiktoken
 
-
-class Tokenizer(tiktoken.Encoding):
-    def __init__(self, model_name='o200k_base', max_sequence=None):
-        assert max_sequence is not None, "max_sequence must be specified"
-        self.max_sequence = max_sequence
-        o200k_base = tiktoken.get_encoding(model_name)
-        self.tokenizer = tiktoken.Encoding(
-        # If you're changing the set of special tokens, make sure to use a different name
-        # It should be clear from the name what behaviour to expect.
-            name="o200k_lm",
-            pat_str=o200k_base._pat_str,
-            mergeable_ranks=o200k_base._mergeable_ranks,
-            special_tokens={
-                **o200k_base._special_tokens,
-                "<|pad|>": 100264
-            }
-        )
-        self.vocab_size = self.tokenizer.n_vocab
-        self.special_tokens_set = self.tokenizer.special_tokens_set
-        
-    def padding(self, token_ids):
-        """Pads the token IDs to the maximum sequence length."""
-        if len(token_ids) < self.max_sequence:
-            token_ids += [100264] * (self.max_sequence - len(token_ids))
-        return token_ids[:self.max_sequence]
-
-    def encode(self, text):
-        """Encodes a string into a list of token IDs."""
-        encoded = self.tokenizer.encode(text + "<|endoftext|>", allowed_special="all")
-        encoded = encoded[:self.max_sequence]  # Limit to max_sequence
-        encoded = self.padding(encoded)
-        return encoded
-
-    def decode(self, token_ids):
-        """Decodes a list of token IDs back into a string."""
-        return self.tokenizer.decode(token_ids)
-    
-    
+def get_tokenizer():
+    o200k_base = tiktoken.get_encoding("o200k_base")
+    tokenizer = tiktoken.Encoding(
+        name="o200k_harmony",
+        pat_str=o200k_base._pat_str,
+        mergeable_ranks=o200k_base._mergeable_ranks,
+        special_tokens={
+            **o200k_base._special_tokens,
+            "<|startoftext|>": 199998,
+            "<|endoftext|>": 199999,
+            "<|pad|>": 200000,
+            "<|reserved_200001|>": 200001,
+            "<|return|>": 200002,
+            "<|constrain|>": 200003,
+            "<|reserved_200004|>": 200004,
+            "<|channel|>": 200005,
+            "<|start|>": 200006,
+            "<|end|>": 200007,
+            "<|message|>": 200008,
+            "<|reserved_200009|>": 200009,
+            "<|reserved_200010|>": 200010,
+            "<|reserved_200011|>": 200011,
+            "<|call|>": 200012,
+        } | {
+            f"<|reserved_{i}|>": i for i in range(200013, 201088)
+        },
+    )
+    return tokenizer
