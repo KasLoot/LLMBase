@@ -6,11 +6,9 @@ from datetime import datetime
 
 from nets.demo_model.model import MiniChat
 
-from utils.tokenizer import get_tokenizer
-
 from nets.demo_model.model import ModelConfig
 
-from utils.dataset import process_data, LanguageModelDataset
+from utils.dataset import LanguageModelDataset
 
 from tqdm import tqdm
 
@@ -96,7 +94,7 @@ def train():
 
     dataset = LanguageModelDataset(path="/home/yuxin/datasets/LLMBase/train_tiny_textbook.pt")
 
-    train_data_loader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=4)
+    train_data_loader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
 
 
     # print(f"input shape: {inputs.shape}, contigous: {inputs.is_contiguous()}\n{inputs[0]}")
@@ -104,7 +102,7 @@ def train():
 
     
     prev_momory = torch.cuda.memory_allocated()
-    model = MiniChat(CFG=CFG).to(device=device).to(torch.bfloat16)
+    model = MiniChat(CFG=CFG).to(device=device).to(torch.bfloat16).train()
     momory_after = torch.cuda.memory_allocated()
     print(f"total memory use for loading model: {(momory_after - prev_momory)/1e6} Mb, {(momory_after - prev_momory)/1e9} Gb")
     
@@ -140,11 +138,10 @@ def train():
             targets: torch.Tensor = targets.to(device)
             optmizer.zero_grad()
             logits: torch.Tensor = model(inputs)  # Raw logits from model
-            print(logits.shape)
             logits = logits.contiguous().view(-1, CFG.vocab_size)
-                
+            targets = targets.view(-1).long()
 
-            loss = loss_func(logits, targets.long())
+            loss = loss_func(logits, targets)
             print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
             
             # Log metrics to wandb

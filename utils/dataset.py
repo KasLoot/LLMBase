@@ -3,9 +3,6 @@ from torch.utils.data import Dataset, DataLoader
 from nets.demo_model.model import ModelConfig
 from datasets import load_dataset
 from tqdm import tqdm
-import numpy as np
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-import multiprocessing as mp
 
 CFG = ModelConfig()
 
@@ -16,6 +13,7 @@ def process_data(tokenizer, CFG: ModelConfig):
     tiny_textbook = load_dataset("parquet", data_files="/home/yuxin/datasets/tiny-textbooks/tiny-textbooks/train-00000-of-00001.parquet")
 
     raw_text: list[str]= tiny_textbook["train"]["textbook"]
+    # raw_text shape: (399000)
 
     # longest sample token len = 3214
 
@@ -40,8 +38,8 @@ def process_data(tokenizer, CFG: ModelConfig):
         
         idx += 1
 
-    torch.save(dataset_tokens, "/home/yuxin/datasets/LLMBase/tiny_textbook.pt")
-    print("dataset tensors saved to: /home/yuxin/datasets/LLMBase/tiny_textbook.pt")
+    torch.save(dataset_tokens, "/home/yuxin/datasets/LLMBase/train_tiny_textbook.pt")
+    print("dataset tensors saved to: /home/yuxin/datasets/LLMBase/train_tiny_textbook.pt")
 
     # test = torch.load("/home/yuxin/datasets/LLMBase/tiny_textbook.pt")
     
@@ -96,10 +94,7 @@ def pad_token(tokenizer, token) -> torch.Tensor:
     idx = 0
     for sample in tqdm(token):
 
-
         tk = tokenizer.encode(sample, allowed_special="all") + [199999]
-        print(len(tk))
-
         if len(tk) > max_sq + 1:
             tk = tk[:max_sq + 1]
             padded_tokens[idx, 1:] = torch.tensor(tk)[:max_sq] # shrink tokens

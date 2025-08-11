@@ -121,7 +121,7 @@ class MHAttention(nn.Module):
         mask = torch.tril(torch.ones(q.shape[2], q.shape[2], device=q.device)).unsqueeze(0).unsqueeze(0)
 
         if mask is not None:
-            score = score.masked_fill(mask==0, -1e-9)
+            score = score.masked_fill(mask==0, torch.finfo(score.dtype).min)
 
         score = F.softmax(score, dim=-1) @ v
 

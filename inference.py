@@ -1,11 +1,10 @@
 import torch
 from utils.tokenizer import get_tokenizer
 import torch.nn.functional as F
-from utils.dataset import LanguageModelDataset, pad_token
+from utils.dataset import pad_token
 from nets.demo_model.model import MiniChat
 
 
-from torch.utils.data import Dataset, DataLoader
 from nets.demo_model.model import ModelConfig
 
 
