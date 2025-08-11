@@ -10,13 +10,13 @@ from dataclasses import dataclass
 
 @dataclass
 class ModelConfig:
-    sq_l: int = 4096
+    sq_l: int = 2048
     d_model: int = 2048
     num_h: int = 16
     hidden_size: int = 4096
     drop_rate: float = 0.1
     vocab_size: int = 201088
-    transformer_blocks: int = 24
+    transformer_blocks: int = 6
     device: torch.device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
