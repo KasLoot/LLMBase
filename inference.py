@@ -2,10 +2,10 @@ import torch
 from utils.tokenizer import get_tokenizer
 import torch.nn.functional as F
 from utils.dataset import pad_token
-from nets.demo_model.model import MiniChat
+from nets.MiniChat.model import MiniChat
 
 
-from nets.demo_model.model import ModelConfig
+from nets.MiniChat.model import ModelConfig
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"

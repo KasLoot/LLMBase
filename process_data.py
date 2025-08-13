@@ -1,5 +1,5 @@
 from utils.tokenizer import get_tokenizer
-from nets.demo_model.model import ModelConfig
+from nets.MiniChat.model import ModelConfig
 from utils.dataset import process_data
 
 

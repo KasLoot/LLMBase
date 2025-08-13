@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-from nets.demo_model.model import ModelConfig
+from nets.MiniChat.model import ModelConfig
 from datasets import load_dataset
 from tqdm import tqdm
 

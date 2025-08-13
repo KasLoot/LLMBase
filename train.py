@@ -4,9 +4,9 @@ import wandb
 import os
 from datetime import datetime
 
-from nets.demo_model.model import MiniChat
+from nets.MiniChat.model import MiniChat
 
-from nets.demo_model.model import ModelConfig
+from nets.MiniChat.model import ModelConfig
 
 from utils.dataset import LanguageModelDataset
 
