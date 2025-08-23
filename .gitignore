@@ -1,10 +1,17 @@
-/nets/__pycache__/
-/dataset/__pycache__/
-/cfg/__pycache__/
-/__pycache__/
-/utils/__pycache__
+# Python
+**/__pycache__/
+
+# VS Code
+.vscode/
+
+# Build artifacts
 .venv/
 wandb/
-/data_samples/
-*/__pycache__/
-*/.DS_Store
+
+# Data and checkpoints
+data_samples/
+checkpoints/
+
+# OS artifacts
+**/.DS_Store
+.DS_Store
