@@ -1,23 +1,35 @@
 import torch
 from utils.tokenizer import get_tokenizer
 import torch.nn.functional as F
-from utils.dataset import pad_token
+from process_data import pad_token
 from nets.MiniChat.model import MiniChat
+from dataclasses import dataclass
 
 
-from nets.MiniChat.model import ModelConfig
+@dataclass
+class ModelConfig:
+    sq_l: int = 2048
+    d_model: int = 2048
+    num_h: int = 16
+    hidden_size: int = 4096
+    drop_rate: float = 0.1
+    vocab_size: int = 201088
+    transformer_blocks: int = 6
+    device: torch.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+
+device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 CFG = ModelConfig()
 
 def inference():
-    checkpoint = torch.load("", weights_only=True)
+    checkpoint = torch.load("/Users/liuyuxin/Documents/models/MiniChat/MiniChat-1B-pt/MiniChat-1B-pt.pt", weights_only=True, map_location=device)
     model = MiniChat(CFG=CFG).to(device=device)
-    model.load_state_dict(checkpoint[""])
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.requires_grad_(False)
     model.eval()
 
-    demo_text = ["Lesson 1: How to"]
+    demo_text = ["Open new Terminal windows and tabs on Mac\nYou can open new Terminal windows and tabs with the default profile, the same profile used by the active window or tab, or a profile you specify.\nUse General settings to choose the profiles used when opening new windows and tabs. If you haven’t chosen a default profile, the Basic profile is used (see Specify default and startup Terminal window profiles)."]
 
     # dataset = LanguageModelDataset(path="/home/yuxin/datasets/LLMBase/train_tiny_textbook.pt")
 
@@ -28,8 +40,11 @@ def inference():
 
     tokenizer = get_tokenizer()
     end_index, x = pad_token(tokenizer, demo_text)
-        
-    x = x.to(device=device)
+    
+    # The pad_token function returns tensors of shape [batch_size, sq_l + 1] 
+    # but model expects [batch_size, sq_l], so we slice appropriately
+    x = x[:, :CFG.sq_l].to(device=device)  # Take only the first sq_l tokens
+    end_index = min(end_index, CFG.sq_l - 1)  # Adjust end_index accordingly
     # predict from end_index + 1 position
     with torch.no_grad():
         for i in range(end_index, CFG.sq_l):

@@ -17,7 +17,7 @@ class ModelConfig:
     drop_rate: float = 0.1
     vocab_size: int = 201088
     transformer_blocks: int = 6
-    device: torch.device = "cuda" if torch.cuda.is_available() else "cpu"
+    device: torch.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 
 class Embedding(nn.Module):

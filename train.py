@@ -24,12 +24,13 @@ def save_model(model, optimizer, epoch, loss, save_path, is_best=False):
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'loss': loss,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'model_config': CFG.__dict__  # Save model configuration
     }
-    
+
     torch.save(checkpoint, save_path)
     print(f"Model saved to {save_path}")
-    
+
     if is_best:
         print(f"New best model saved with loss: {loss:.4f}")
 

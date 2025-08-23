@@ -24,7 +24,9 @@ def save_model(model, optimizer, epoch, loss, save_path, is_best=False):
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'loss': loss,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'model_config': CFG.__dict__  # Save model configuration
+
     }
     
     torch.save(checkpoint, save_path)
@@ -56,12 +58,7 @@ def train():
 
 
     dataset = LanguageModel_SFT_Dataset(path="/Users/liuyuxin/Documents/LLMBase/data_samples/sft_data.pt")
-
     train_data_loader = DataLoader(dataset, batch_size=2, shuffle=True)
-
-
-    # print(f"input shape: {inputs.shape}, contigous: {inputs.is_contiguous()}\n{inputs[0]}")
-    # print(f"targets shape: {targets.shape}, contigous: {targets.is_contiguous()}\n{targets[0]}")
 
     
     prev_momory = torch.cuda.memory_allocated()
@@ -80,11 +77,11 @@ def train():
     optmizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     loss_func = torch.nn.CrossEntropyLoss(ignore_index=200000)
 
-    step = 0
+    
     for epoch in tqdm(range(1)):
         epoch_loss = 0
         batch_count = 0
-        
+        step = 0
         for batch in tqdm(train_data_loader):
             inputs, targets = batch
             inputs: torch.Tensor = inputs.to(device)
@@ -142,7 +139,6 @@ def train():
             best_loss = avg_epoch_loss
             save_model(model, optmizer, epoch + 1, avg_epoch_loss, best_model_path, is_best=True)
             
-            # Log best model info to wandb
 
     # Training completed - save final summary
     print(f"\nTraining completed!")
@@ -150,19 +146,18 @@ def train():
     print(f"Latest model saved to: {latest_model_path}")
     print(f"Best model saved to: {best_model_path}")
     
-    # Log final metrics to wandb
-
-
-
-    
-
-
-
-train()
 
 
 
 
+
+
+def main():
+    train()
+
+
+if __name__ == "__main__":
+    main()
 
 # model = DemoTextModel(CFG).to(device).to(torch.bfloat16)
 # x = torch.randint(0, 100000, (CFG["batch_size"], CFG["sq_l"])).to(device)
