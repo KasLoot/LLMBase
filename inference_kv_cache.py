@@ -23,19 +23,21 @@ device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is
 CFG = ModelConfig()
 
 def inference():
-    checkpoint = torch.load("/Users/liuyuxin/Documents/models/MiniChat/MiniChat-1B-pt/MiniChat-1B-pt.pt", weights_only=True, map_location=device)
+    checkpoint = torch.load("/Users/liuyuxin/Documents/models/MiniChat/MiniChat-1B-pt/checkpoint_epoch_1.pt", weights_only=False, map_location=device)
     model = MiniChat(CFG=CFG, use_cache=True).to(device=device)
     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
     model.requires_grad_(False)
     model.eval()
 
-    demo_text = ["Open new Terminal windows and tabs on Mac\nYou can open new Terminal windows and tabs with the default profile, the same profile used by the active window or tab, or a profile you specify.\nUse General settings to choose the profiles used when opening new windows and tabs. If you haven’t chosen a default profile, the Basic profile is used (see Specify default and startup Terminal window profiles)."]
+    with open("prompt.txt", "r") as f:
+        demo_text = [f.read()]
 
     tokenizer = get_tokenizer()
     end_index, x = pad_token(tokenizer, demo_text)
     
     x = x[:, :CFG.sq_l].to(device=device)
     end_index = min(end_index, CFG.sq_l - 1)
+    print("\n\n\n" + "-"*20 + "\n\n")
 
     # prefill
     with torch.no_grad():

@@ -5,13 +5,14 @@ import wandb
 import os
 from datetime import datetime
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from nets.MiniChat.model import ModelConfig, MiniChat
 from utils.dataset import LanguageModelDataset
 
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
 from torch.distributed import init_process_group, destroy_process_group
 
 from tqdm import tqdm
@@ -25,16 +26,17 @@ class ModelConfig:
     drop_rate: float = 0.1
     vocab_size: int = 201088
     transformer_blocks: int = 6
+    device: torch.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 
 @dataclass
 class TrainConfig:
-    batch_size: int = 16
+    batch_size: int = 24
     epochs: int = 3
     learning_rate: float = 1e-4
     save_dir: str = "./checkpoints/"
-    data_dir: str = "/Users/liuyuxin/Documents/LLMBase/data_samples/demo_pretrain_data_tokens.pt"
-    model_config: ModelConfig = ModelConfig()
+    data_dir: str = "/workspace/datasets/pretrain_data_tokens.pt"
+    model_config: ModelConfig = field(default_factory=ModelConfig)
 
 
 
@@ -48,9 +50,11 @@ class Trainer():
             sampler: DistributedSampler,
             optimizer: torch.optim.Optimizer,
             scheduler,
-            gpu_id: int
+            gpu_id: int,
+            world_size: int
             ):
         self.gpu_id = gpu_id
+        self.world_size = world_size
         self.model = model.to(gpu_id).to(torch.bfloat16)
         self.train_config = train_config
         self.train_dataloader = train_dataloader
@@ -81,8 +85,13 @@ class Trainer():
         loss = self.loss_function(logits, targets)
         loss.backward()
         self.optimizer.step()
+        
+        total_loss = loss.clone().detach()
+        dist.all_reduce(total_loss, op=dist.ReduceOp.SUM)
+        avg_loss = total_loss / self.world_size
+
         if self.gpu_id == 0:
-            wandb.log({"loss": loss.item(), "lr": self.scheduler.get_last_lr()[0]})
+            wandb.log({"loss": avg_loss.item(), "lr": self.scheduler.get_last_lr()[0]})
 
     def _run_epoch(self, epoch: int):
         self.train_dataloader.sampler.set_epoch(epoch)
@@ -108,16 +117,29 @@ def ddp_setup(rank, world_size):
         world_size: Total number of processes
     """
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12355"
+    os.environ["MASTER_PORT"] = "1250"
     torch.cuda.set_device(rank)
     init_process_group(backend="nccl", rank=rank, world_size=world_size)
 
 
-def load_train_objs(train_config: TrainConfig):
+def load_train_objs(train_config: TrainConfig, rank: int):
+    """
+    Loads the training objects. To avoid issues with multiple processes
+    reading the same file simultaneously, it's safe for each rank to
+    instantiate its own dataset and model. Avoid broadcasting large
+    Python objects (Dataset/Model/Optimizer) which can hang or be very
+    slow when pickled across ranks.
+    """
+    # Each rank creates its own instances locally.
+    print("initializing train_dataset")
     train_dataset = LanguageModelDataset(train_config.data_dir, train_config.model_config.sq_l)
+    print("initializing model")
     model = MiniChat(train_config.model_config)
+    print("initializing optimizer")
     optimizer = torch.optim.Adam(model.parameters(), lr=train_config.learning_rate)
+    print("initializing scheduler")
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=train_config.epochs, eta_min=0)
+
     return train_dataset, model, optimizer, scheduler
 
 
@@ -126,7 +148,7 @@ def main(rank: int, world_size: int):
     ddp_setup(rank, world_size)
     if rank == 0:
         wandb.init(
-            project="LLMBase-DDP-Pretrain",
+            project="LLMBase-DDP-Pretrain-MiniChat",
             config={
                 "learning_rate": train_config.learning_rate,
                 "epochs": train_config.epochs,
@@ -134,8 +156,11 @@ def main(rank: int, world_size: int):
                 "model_config": train_config.model_config.__dict__,
             }
         )
-    dataset, model, optimizer, scheduler = load_train_objs(train_config)
+    print(f"[{rank}] Loading objects")
+    dataset, model, optimizer, scheduler = load_train_objs(train_config, rank)
+    print(f"[{rank}] Loading DistributedSampler")
     sampler = DistributedSampler(dataset)
+    print(f"[{rank}] Initializing DataLoader")
     data_loader = DataLoader(
         dataset,
         batch_size=train_config.batch_size,
@@ -143,6 +168,7 @@ def main(rank: int, world_size: int):
         pin_memory=True,
         sampler=sampler
     )
+    print(f"[{rank}] Initializing Trainer")
     trainer = Trainer(
         model=model,
         train_dataloader=data_loader,
@@ -150,8 +176,10 @@ def main(rank: int, world_size: int):
         optimizer=optimizer,
         scheduler=scheduler,
         gpu_id=rank,
-        train_config=train_config
+        train_config=train_config,
+        world_size=world_size
     )
+    print(f"[{rank}] Start training")
     trainer.train()
     if rank == 0:
         wandb.finish()
@@ -159,6 +187,7 @@ def main(rank: int, world_size: int):
 
 
 if __name__ == "__main__":
+    wandb.login(key="9c5a4f0ff5bbd5c1ac287e84272b09e4dd0e023a")
     world_size = torch.cuda.device_count()
     print(f"Using {world_size} GPUs for training")
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)

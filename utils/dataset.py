@@ -40,24 +40,24 @@ class LanguageModelDataset(Dataset):
     def __init__(self, path, seq_length):
         """
         Args:
-            tokenized_text (torch.Tensor): A tensor of tokenized text
-                                            of shape (num_samples, sequence_length).
+            path (str): Path to the tokenized data file
+            seq_length (int): Length of each sequence
         """
-        self.samples = torch.load(path)
         self.seq_length = seq_length
-        self.samples = torch.tensor(list(self.split_into_chunks(self.samples))[:-1])
+        # Load the flat tensor of tokens
+        tokens = torch.load(path)
+        
+        # Split the flat tensor into chunks of seq_length + 1 
+        # (extra token for target prediction)
+        chunk_size = seq_length + 1
+        num_chunks = len(tokens) // chunk_size
+        
+        # Reshape into chunks, discarding incomplete final chunk
+        self.samples = tokens[:num_chunks * chunk_size].view(num_chunks, chunk_size)
 
     def __len__(self):
         """Returns the total number of samples in the dataset."""
         return len(self.samples)
-    
-    def split_into_chunks(self, tokens):
-        """
-        Splits the samples into chunks of the specified sequence length.
-        """
-        for sequence in tokens:
-            for i in range(0, len(sequence), self.seq_length+1):
-                yield sequence[i:i+self.seq_length]
 
     def __getitem__(self, idx):
         """
@@ -67,7 +67,9 @@ class LanguageModelDataset(Dataset):
         # Get the full sequence for the given index
         sequence = self.samples[idx]
 
-        input = sequence[:-1]
-        target = sequence[1:]
+        # Input is all tokens except the last one
+        input_ids = sequence[:-1]
+        # Target is all tokens except the first one (shifted by 1)
+        target_ids = sequence[1:]
 
-        return input, target
+        return input_ids, target_ids

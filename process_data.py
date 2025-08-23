@@ -204,4 +204,4 @@ save_file = "/Users/liuyuxin/Documents/LLMBase/data_samples/demo_pretrain_data_t
 
 save_file_server = "/workspace/datasets/pretrain_data_tokens.pt"
 
-preprocess_pretrain_data(demo_pretrain_collections, "/Users/liuyuxin/Documents/LLMBase/data_samples/demo_pretrain_data_tokens.pt")
+# preprocess_pretrain_data(demo_pretrain_collections, "/Users/liuyuxin/Documents/LLMBase/data_samples/demo_pretrain_data_tokens.pt")
