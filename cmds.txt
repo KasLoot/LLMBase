@@ -1,0 +1,26 @@
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+git clone https://github.com/KasLoot/LLMBase.git
+
+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
+
+apt-get install git-lfs
+
+git lfs install
+
+
+git clone https://huggingface.co/datasets/nampdn-ai/tiny-textbooks
+
+
+git clone https://huggingface.co/datasets/open-phi/textbooks_grounded
+
+
+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
+
+
+
+uv venv -p 3.13.5
+
+python3 process_data.py
+
+python3 pretrain_ddp.py

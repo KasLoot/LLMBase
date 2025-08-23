@@ -179,5 +179,29 @@ demo_pretrain_collections = [
     }
 ]
 
+demo_pretrain_collections_server = [
+    {
+        "author": "nampdn-ai",
+        "datasets": [
+            {
+                "name": "tiny_textbook",
+                "dir": "/workspace/datasets/nampdn-ai/tiny-textbooks/tiny-textbooks/"
+            }
+        ]
+    },
+    {
+        "author": "open-phi",
+        "datasets": [
+            {
+                "name": "textbooks_grounded",
+                "dir": "/Users/liuyuxin/Documents/datasets/open-phi/textbooks_grounded/data/"
+            }
+        ]
+    }
+]
+
+save_file = "/Users/liuyuxin/Documents/LLMBase/data_samples/demo_pretrain_data_tokens.pt"
+
+save_file_server = "/workspace/datasets/pretrain_data_tokens.pt"
 
 preprocess_pretrain_data(demo_pretrain_collections, "/Users/liuyuxin/Documents/LLMBase/data_samples/demo_pretrain_data_tokens.pt")
