@@ -45,17 +45,20 @@ class Trainer():
             model: nn.Module,
             train_config: TrainConfig,
             train_dataloader: DataLoader,
+            sampler: DistributedSampler,
             optimizer: torch.optim.Optimizer,
+            scheduler,
             gpu_id: int
             ):
         self.gpu_id = gpu_id
         self.model = model.to(gpu_id).to(torch.bfloat16)
         self.train_config = train_config
         self.train_dataloader = train_dataloader
+        self.sampler = sampler
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.model = DDP(model, device_ids=[gpu_id])
         self.loss_function = nn.CrossEntropyLoss(ignore_index=200000)
-        self.train_config = train_config
 
     def save_model(self, epoch: int):
         checkpoint = {
@@ -78,8 +81,11 @@ class Trainer():
         loss = self.loss_function(logits, targets)
         loss.backward()
         self.optimizer.step()
+        if self.gpu_id == 0:
+            wandb.log({"loss": loss.item(), "lr": self.scheduler.get_last_lr()[0]})
 
-    def _run_epoch(self):
+    def _run_epoch(self, epoch: int):
+        self.train_dataloader.sampler.set_epoch(epoch)
         self.model.train()
         for batch in tqdm(self.train_dataloader, desc="Training"):
             input, targets = batch
@@ -89,7 +95,8 @@ class Trainer():
 
     def train(self):
         for epoch in tqdm(range(self.train_config.epochs), desc="Epochs"):
-            self._run_epoch()
+            self._run_epoch(epoch)
+            self.scheduler.step()
             if self.gpu_id == 0:
                 self.save_model(epoch)
 
@@ -110,29 +117,44 @@ def load_train_objs(train_config: TrainConfig):
     train_dataset = LanguageModelDataset(train_config.data_dir, train_config.model_config.sq_l)
     model = MiniChat(train_config.model_config)
     optimizer = torch.optim.Adam(model.parameters(), lr=train_config.learning_rate)
-    return train_dataset, model, optimizer
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=train_config.epochs, eta_min=0)
+    return train_dataset, model, optimizer, scheduler
 
 
 def main(rank: int, world_size: int):
     train_config = TrainConfig()
     ddp_setup(rank, world_size)
-    dataset, model, optimizer = load_train_objs(train_config)
+    if rank == 0:
+        wandb.init(
+            project="LLMBase-DDP-Pretrain",
+            config={
+                "learning_rate": train_config.learning_rate,
+                "epochs": train_config.epochs,
+                "batch_size": train_config.batch_size,
+                "model_config": train_config.model_config.__dict__,
+            }
+        )
+    dataset, model, optimizer, scheduler = load_train_objs(train_config)
+    sampler = DistributedSampler(dataset)
     data_loader = DataLoader(
         dataset,
         batch_size=train_config.batch_size,
         shuffle=False,
         pin_memory=True,
-        sampler=DistributedSampler(dataset)
+        sampler=sampler
     )
     trainer = Trainer(
         model=model,
-        model_config=train_config.model_config,
         train_dataloader=data_loader,
+        sampler=sampler,
         optimizer=optimizer,
+        scheduler=scheduler,
         gpu_id=rank,
         train_config=train_config
     )
     trainer.train()
+    if rank == 0:
+        wandb.finish()
     destroy_process_group()
 
 
