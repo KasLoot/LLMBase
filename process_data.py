@@ -82,13 +82,23 @@ def preprocess_pretrain_data_deprecate():
     
     # assert torch.equal(test, dataset_tokens)
 
-def preprocess_pretrain_data(datasets :dict):
-    for dataset in datasets:
-        raw_data = handle_dataset(dataset)
-        
+def preprocess_pretrain_data(collections :dict, save_path: str):
+    all_in_one_raw_data_string = ""
+    for datasets in collections:
+        raw_data = handle_dataset(datasets)
+        all_in_one_raw_data_string += "\n\n" + raw_data
 
+    tokenizer = get_tokenizer()
+    print("tokenizer initialized")
+    tokens = tokenizer.encode(all_in_one_raw_data_string, allowed_special="all")
+    print("Encoding complete.")
+    tokens = torch.tensor(tokens)
+    print(f"Total number of tokens: {tokens.shape[0]}")
 
-        pass
+    torch.save(tokens, save_path)
+    print(f"Tokens saved to: {save_path}")
+
+    return all_in_one_raw_data_string
 
 
 def preprocess_sft_data(data :list[dict]):
@@ -146,3 +156,28 @@ test_data = [{
     ]
 
 # preprocess_sft_data(test_data)
+
+# 251,244,180 tokens
+demo_pretrain_collections = [
+    {
+        "author": "nampdn-ai",
+        "datasets": [
+            {
+                "name": "tiny_textbook",
+                "dir": "/Users/liuyuxin/Documents/datasets/nampdn-ai/tiny-textbooks"
+            }
+        ]
+    },
+    {
+        "author": "open-phi",
+        "datasets": [
+            {
+                "name": "textbooks_grounded",
+                "dir": "/Users/liuyuxin/Documents/datasets/open-phi/textbooks_grounded"
+            }
+        ]
+    }
+]
+
+
+preprocess_pretrain_data(demo_pretrain_collections, "/Users/liuyuxin/Documents/LLMBase/data_samples/demo_pretrain_data_tokens.pt")
