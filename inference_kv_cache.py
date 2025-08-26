@@ -22,7 +22,17 @@ class ModelConfig:
 device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 CFG = ModelConfig()
 
-def inference():
+
+def sample(logits: torch.Tensor, temperature: float) -> torch.Tensor:
+    if temperature == 0.0:
+        return torch.argmax(logits, dim=-1)
+    else:
+        logits = logits / temperature
+        probs = F.softmax(logits, dim=-1)
+        return torch.multinomial(probs, num_samples=1)
+
+
+def inference(temperature: float = 0.8):
     checkpoint = torch.load("/Users/liuyuxin/Documents/models/MiniChat/MiniChat-1B-pt/checkpoint_epoch_1.pt", weights_only=False, map_location=device)
     model = MiniChat(CFG=CFG, use_cache=True).to(device=device)
     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
@@ -34,7 +44,6 @@ def inference():
 
     tokenizer = get_tokenizer()
     end_index, x = pad_token(tokenizer, demo_text)
-    
     x = x[:, :CFG.sq_l].to(device=device)
     end_index = min(end_index, CFG.sq_l - 1)
     print("\n\n\n" + "-"*20 + "\n\n")
@@ -43,20 +52,22 @@ def inference():
     with torch.no_grad():
         logits = model(x[:, :end_index], start_pos=0)
         logits_for_next_token = logits[0, -1, :]
-        pred_token = torch.argmax(logits_for_next_token, dim=-1)
+        pred_token = sample(logits_for_next_token, temperature)
+
         x[0, end_index] = pred_token.item()
         pred_text = tokenizer.decode([pred_token.item()])
-        print(pred_text, end="", flush=True)
+        print(f"Assistant:\n{pred_text[1:]}", end="", flush=True)
 
 
     # generation
     with torch.no_grad():
         for i in range(end_index + 1, CFG.sq_l):
+            # print(i)
             logits = model(x[:, i-1:i], start_pos=i-1)
             
             logits_for_next_token = logits[0, -1, :]
             
-            pred_token = torch.argmax(logits_for_next_token, dim=-1)
+            pred_token = sample(logits_for_next_token, temperature)
             
             x[0, i] = pred_token.item()
             

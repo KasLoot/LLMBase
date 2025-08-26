@@ -29,13 +29,14 @@ def pad_token(tokenizer, token) -> torch.Tensor:
     for sample in tqdm(token):
 
         tk = tokenizer.encode(sample, allowed_special="all") + [199999]
+        print(len(tk))
         if len(tk) > max_sq + 1:
             tk = tk[:max_sq + 1]
             padded_tokens[idx, 1:] = torch.tensor(tk)[:max_sq] # shrink tokens
-            end_index = max_sq
+            end_index = max_sq - 1
         else:
             padded_tokens[idx, 1:1+len(tk)] = torch.tensor(tk) # copy tokens to padded tokens
-            end_index = 1+len(tk)
+            end_index = len(tk)
         
         idx += 1
 
