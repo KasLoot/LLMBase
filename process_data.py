@@ -110,12 +110,9 @@ def preprocess_sft_data(data :list[dict]):
     start_tensor = torch.full((len(data), 1), 199998)
     dataset_tokens = torch.hstack((start_tensor, dataset_tokens))
 
-    
 
     idx = 0
     for sample in tqdm(data):
-
-
 
         tk = [200013] + tokenizer.encode(sample["system"], allowed_special="all") \
             + [200015] + tokenizer.encode(sample["assistant"], allowed_special="all") \
@@ -132,10 +129,6 @@ def preprocess_sft_data(data :list[dict]):
     SAVE_PATH = "/Users/liuyuxin/Documents/LLMBase/data_samples/sft_data.pt"
     torch.save(dataset_tokens, SAVE_PATH)
     print("dataset tensors saved to: {SAVE_PATH}")
-
-    # test = torch.load("/home/yuxin/datasets/LLMBase/tiny_textbook.pt")
-    
-    # assert torch.equal(test, dataset_tokens)
 
 
 

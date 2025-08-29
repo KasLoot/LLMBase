@@ -57,7 +57,7 @@ def train():
     best_loss = float('inf')
 
 
-    dataset = LanguageModel_SFT_Dataset(path="/Users/liuyuxin/Documents/LLMBase/data_samples/sft_data.pt")
+    dataset = LanguageModel_SFT_Dataset(dir="/Users/liuyuxin/Documents/datasets/allenai/tulu-v2-sft-mixture/token_tensors", seq_length=CFG.sq_l)
     train_data_loader = DataLoader(dataset, batch_size=2, shuffle=True)
 
     
@@ -83,37 +83,16 @@ def train():
         batch_count = 0
         step = 0
         for batch in tqdm(train_data_loader):
-            inputs, targets = batch
+            sep_index, inputs, targets = batch
             inputs: torch.Tensor = inputs.to(device)
             targets: torch.Tensor = targets.to(device)
-            # Find where assistant response starts (after the assistant marker)
-            target_start_index = (inputs == 200014).nonzero(as_tuple=True)[1]
             optmizer.zero_grad()
-            logits: torch.Tensor = model(inputs)  # Raw logits from model
-            print(f"logits shape: {logits.shape}")
-            
-            # Properly mask targets: set non-assistant tokens to ignore_index
-            for i in range(logits.shape[0]):
-                # Mask everything before the assistant response (keep assistant marker, mask response tokens)
-                # Assistant response starts AFTER the assistant marker
-                mask_end = target_start_index[i] + 1  # +1 to include the assistant marker in masking
-                targets[i, :mask_end] = 200000  # Use ignore_index, not 0
-                
-            # Don't modify logits - let the model see the full context
-
-            print(f"logits sample: {logits[0, :2]}")
-            print(f"target sample: {targets[0, :2]}")
-            """
-            logits sample: tensor([[0., 0., 0.,  ..., 0., 0., 0.], [0., 0., 0.,  ..., 0., 0., 0.]], device='mps:0', dtype=torch.bfloat16, grad_fn=<SliceBackward0>)
-            target sample: tensor([0, 0], device='mps:0')
-            """
+            logits: torch.Tensor = model(inputs)[:, sep_index + 1:]
 
             logits = logits.contiguous().view(-1, CFG.vocab_size)
-            print(f"logits shape: {logits.shape}")
-
-            
 
             targets = targets.view(-1).long()
+            print(f"logits shape: {logits.shape}")
             print(f"targets shape: {targets.shape}")
             loss = loss_func(logits, targets)
             print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
