@@ -30,12 +30,13 @@ class LoRALinear(nn.Module):
         self.rank = rank
         self.alpha = alpha
 
-        self.lora_A = nn.Parameter(torch.zeros(rank, self.in_features))
-        self.lora_B = nn.Parameter(torch.zeros(self.out_features, rank))
+        # self.lora_A = nn.Parameter(torch.zeros(rank, self.in_features))
+        # nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        self.lora_A = nn.Linear(self.in_features, self.rank)
+        self.lora_B = nn.Linear(self.rank, self.out_features)
         self.scaling = self.alpha / self.rank
 
-        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
-        nn.init.zeros_(self.lora_B)
+        
 
     def forward(self, x):
         """
@@ -48,8 +49,15 @@ class LoRALinear(nn.Module):
             torch.Tensor: The output of the original layer plus the LoRA update.
         """
         original_output = self.linear(x)
-        lora_update = (self.lora_B @ self.lora_A) * self.scaling
-        lora_output = F.linear(x, lora_update)
+        
+        # More efficient implementation:
+        # Pass the input through the low-rank matrices sequentially
+        # instead of forming the full lora_update matrix.
+        # x -> (A*x) -> B*(A*x)
+        lora_A_output = self.lora_A(x)
+        lora_B_output = self.lora_B(lora_A_output)
+        
+        lora_output = lora_B_output * self.scaling
         
         return original_output + lora_output
 

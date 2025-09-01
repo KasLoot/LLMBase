@@ -7,6 +7,7 @@ import sys
 from datasets import load_dataset
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from utils.tokenizer import get_tokenizer
+from pathlib import Path
 
 class Allenai():
     def __init__(self, local_dir, dataset_names: list[str], sq_l, tokenizer: tiktoken.Encoding):
@@ -27,7 +28,7 @@ class Allenai():
         pass
 
 
-    def process_tulu_v2_sft_mixture(self):
+    def process_tulu_v2_sft_mixture_deprecated(self):
         dataset_path = os.path.join(self.local_dir, "tulu-v2-sft-mixture/data/")
         for file in os.listdir(dataset_path):
             file_path = os.path.join(dataset_path, file)
@@ -85,7 +86,22 @@ class Allenai():
                 #     print(filtered_data[0])
 
         return 0
+    def process_tulu_v2_sft_mixture_deprecated(self):
+        dataset_path = os.path.join(self.local_dir, "tulu-v2-sft-mixture/data/")
+        pathlist = Path(dataset_path).rglob('*.parquet')
+        for file in pathlist:
+            print(f"Processing file: {file}")
+            data = load_dataset("parquet", data_files=file)
 
+        return 0
+    
+
+    def process_WildChat(self):
+        dataset_path = os.path.join(self.local_dir, "WildChat-4.8M/data/")
+        pathlist = Path(dataset_path).rglob('*.parquet')
+        for file in pathlist:
+            print(f"Processing file: {file}")
+            data = load_dataset("parquet", data_files=file)
 
 allenai = Allenai(local_dir="/Users/liuyuxin/Documents/datasets/allenai/", dataset_names=["tulu-v2-sft-mixture"], sq_l=2048, tokenizer=get_tokenizer())
 allenai.handle_datasets()
