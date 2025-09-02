@@ -86,7 +86,7 @@ class Allenai():
                 #     print(filtered_data[0])
 
         return 0
-    def process_tulu_v2_sft_mixture_deprecated(self):
+    def process_tulu_v2_sft_mixture(self):
         dataset_path = os.path.join(self.local_dir, "tulu-v2-sft-mixture/data/")
         pathlist = Path(dataset_path).rglob('*.parquet')
         for file in pathlist:
@@ -98,10 +98,33 @@ class Allenai():
 
     def process_WildChat(self):
         dataset_path = os.path.join(self.local_dir, "WildChat-4.8M/data/")
+        print(f"Processing dataset at: {dataset_path}")
         pathlist = Path(dataset_path).rglob('*.parquet')
-        for file in pathlist:
-            print(f"Processing file: {file}")
-            data = load_dataset("parquet", data_files=file)
 
-allenai = Allenai(local_dir="/Users/liuyuxin/Documents/datasets/allenai/", dataset_names=["tulu-v2-sft-mixture"], sq_l=2048, tokenizer=get_tokenizer())
-allenai.handle_datasets()
+
+        for f_i, file in enumerate(pathlist):
+            print(f"Processing file: {file}")
+            data = load_dataset("parquet", data_files=str(file))["train"]["conversation"]
+            print(data[0][0]["content"])
+            print(data[0][1]["content"])
+
+            file_json = []
+
+            for s_i, sample in enumerate(data):
+                sample_json = {
+                    "conversations": [],
+                    "tools": None
+                }
+
+                for m_i, msg in enumerate(sample):
+                    role = "system" if msg["role"] == "system" else ("user" if m_i % 2 == 0 else "assistant")
+                    sample_json["conversations"].append(msg["role"])
+
+                
+
+
+
+            break
+
+allenai = Allenai(local_dir="/home/yuxin/datasets/allenai/", dataset_names=["tulu-v2-sft-mixture"], sq_l=2048, tokenizer=get_tokenizer())
+allenai.process_WildChat()
