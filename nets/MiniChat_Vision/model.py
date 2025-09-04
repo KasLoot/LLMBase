@@ -3,21 +3,24 @@ import torch.nn as nn
 
 
 import torch.nn.functional as F
+from transformers import AutoModel, AutoProcessor
 
 import math
 
 from dataclasses import dataclass
 
+from transformers import AutoModel
+
 @dataclass
 class ModelConfig:
-    sq_l: int = 10
+    sq_l: int = 2048
     d_model: int = 2048
     num_h: int = 16
     hidden_size: int = 4096
     drop_rate: float = 0.1
     vocab_size: int = 201088
     transformer_blocks: int = 6
-    device: torch.device = "cuda" if torch.cuda.is_available() else "cpu"
+    device: torch.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 
 class Embedding(nn.Module):
@@ -190,52 +193,65 @@ class Transformer(nn.Module):
             x = block(x)
 
         return x
+    
+
+def get_image_encoder():
+    ckpt = "/home/yuxin/models/siglip2-large-patch16-256"
+    model = AutoModel.from_pretrained(ckpt, device_map="cuda").eval()
+    processor = AutoProcessor.from_pretrained(ckpt)
+
+    return model, processor
+
+class VisionProjection(nn.Module):
+    def __init__(self, CFG: ModelConfig, vision_dim: int = 1024):
+        super().__init__()
+        self.d_model = CFG.d_model
+        self.vision_dim = vision_dim
+        # self.vit_model, self.vit_processor = get_image_encoder()
+        self.linear1 = nn.Linear(self.vision_dim, self.d_model)
+        self.linear2 = nn.Linear(self.d_model, self.d_model)
+        self.drop = nn.Dropout(CFG.drop_rate)
+        self.projection = nn.Sequential(
+            self.linear1,
+            nn.GELU(),
+            self.drop,
+            self.linear2
+        )
 
 
-class MiniChat(nn.Module):
+    def forward(self, image_emb: torch.Tensor):
+        # image = self.vit_processor(image, return_tensors="pt")
+        # image = self.vit_model.vision_model(**image).last_hidden_state
+        image_emb = self.projection(image_emb)
+        print(f"Image embedding shape: {image_emb.shape}")
+        return image_emb
+
+
+class MiniChat_Vision(nn.Module):
     def __init__(self, CFG: ModelConfig):
         super().__init__()
         self.d_model = CFG.d_model
         self.vocab = CFG.vocab_size
         self.embedding = Embedding(CFG=CFG)
+        self.vision_emb = VisionProjection(CFG=CFG, vision_dim=1024)
         self.transformer = Transformer(CFG=CFG)
 
         self.post_rms = nn.RMSNorm(self.d_model)
         self.linear = nn.Linear(self.d_model, self.vocab)
 
-    def forward(self, x: torch.Tensor):
+
+    def concat_image_text(self, image_emb: torch.Tensor, text_emb: torch.Tensor):
+        # image_emb: (batch_size, img_seq_len, d_model)
+        # text_emb: (batch_size, text_seq_len, d_model)
+        text_emb[:, 1:257, :] = image_emb
+        return text_emb
+
+    def forward(self, image, x: torch.Tensor):
         x = self.embedding(x)
+        image = self.vision_emb(image)
+        x = self.concat_image_text(image, x)
         x = self.transformer(x)
         x = self.post_rms(x)
         x = self.linear(x)
 
         return x
-    
-
-
-def test():
-    from datetime import datetime
-    CFG = ModelConfig()
-    dummy_in = torch.randint(0, CFG.vocab_size, (1, 10)).to("cuda")
-
-    t1 = datetime.now()
-    model = MiniChat(CFG).to("cuda").to(torch.bfloat16)
-    t2 = datetime.now()
-    print(f"Load model takes: {t2 - t1}")
-    t2_1 = datetime.now()
-    out = model(dummy_in)
-    t2_2 = datetime.now()
-    print(f"output without compiled model takes: {t2_2 - t2_1}")
-    t3 = datetime.now()
-    # model.compile()
-    t4 = datetime.now()
-    print(f"Compile model takes: {t4 - t3}")
-    t5 = datetime.now()
-    out = model(dummy_in)
-    t6 = datetime.now()
-    print(f"output with compiled model takes: {t6 - t5}")
-    out = torch.argmax(F.softmax(out, dim=-1), dim=-1)
-    
-    print(out)
-
-test()
