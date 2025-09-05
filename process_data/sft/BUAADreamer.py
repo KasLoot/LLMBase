@@ -12,7 +12,7 @@ from transformers import AutoModel, AutoProcessor
 
 import PIL
 from PIL import Image
-
+import argparse
 
 def get_image_encoder():
     ckpt = "/home/yuxin/models/siglip2-large-patch16-256"
@@ -117,10 +117,10 @@ class BUAADreamer():
                 file_assistant_indexes_filtered = [file_assistant_indexes[i] for i in valid_indices.tolist()]
                 
                 print(f"Filtered out {len(data) - len(valid_indices)} samples due to truncation. Keeping {len(valid_indices)} valid samples.")
-                
-                torch.save(file_text_tensor_filtered, f"/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_{f_i}_texttokens.pt")
-                torch.save(file_image_embeds_tensor_filtered, f"/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_{f_i}_image_embeds.pt")
-                json.dump(file_assistant_indexes_filtered, open(f"/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_{f_i}_assistant_indexes.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+
+                torch.save(file_text_tensor_filtered, f"{self.local_dir}/processed_data/file_{f_i}_texttokens.pt")
+                torch.save(file_image_embeds_tensor_filtered, f"{self.local_dir}/processed_data/file_{f_i}_image_embeds.pt")
+                json.dump(file_assistant_indexes_filtered, open(f"{self.local_dir}/processed_data/file_{f_i}_assistant_indexes.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
             else:
                 print(f"No valid samples found in file {f_i}. All samples were truncated.")
             break
@@ -148,7 +148,15 @@ class BUAADreamer():
             # json.dump(file_json, open(output_file, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
             # break
 
+# Argument parser setup
+parser = argparse.ArgumentParser(description="Process BUAADreamer datasets.")
+parser.add_argument('--save_dir', type=str, required=True, help='Directory to save processed files', default="/home/yuxin/datasets/BUAADreamer")
+args = parser.parse_args()
+
+# Use the parsed save directory
+save_dir = args.save_dir
+
 vit_model, vit_processor = get_image_encoder()
 
-allenai = BUAADreamer(local_dir="/home/yuxin/datasets/BUAADreamer/", dataset_names=["llava-en-zh-2k"], sq_l=2048, text_tokenizer=get_tokenizer(), vit_model=vit_model, vit_processor=vit_processor)
+allenai = BUAADreamer(local_dir=save_dir, dataset_names=["llava-en-zh-2k"], sq_l=2048, text_tokenizer=get_tokenizer(), vit_model=vit_model, vit_processor=vit_processor)
 allenai.process_llava_en_zh_2k()

@@ -1,0 +1,18 @@
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+git clone https://github.com/KasLoot/LLMBase.git
+
+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
+
+
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+
+apt-get install git-lfs
+
+git lfs install
+
+git clone https://huggingface.co/datasets/BUAADreamer/llava-en-zh-2k
+
+cd LLMBase & source .venv/bin/activate
+
+python process_data/sft/BUAADreamer.py --save_dir /workspace/BUAADreamer

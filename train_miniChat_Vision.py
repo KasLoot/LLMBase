@@ -10,10 +10,46 @@ from nets.MiniChat_Vision.model import ModelConfig, MiniChat_Vision
 from utils.dataset import VLM_SFT_Dataset
 
 from tqdm import tqdm
+import argparse
+from dataclasses import dataclass
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 CFG = ModelConfig()
+
+@dataclass
+class TrainingConfig_local:
+    learning_rate: float = 1e-4
+    epochs: int = 3
+    batch_size: int = 16
+    model_file: str = "/home/yuxin/models/LLMBase/MiniChat/MiniChat-1B-pt-v1.pt"
+    save_dir: str = "checkpoints"
+    processed_data_dir: str = "/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/"
+    text_tokens_path: str = os.path.join(processed_data_dir, "file_0_texttokens.pt")
+    image_embeds_path: str = os.path.join(processed_data_dir, "file_0_image_embeds.pt")
+    assistant_index_path: str = os.path.join(processed_data_dir, "file_0_assistant_indexes.json")
+    seq_length: int = CFG.sq_l
+
+
+@dataclass
+class TrainingConfig_server:
+    learning_rate: float = 1e-4
+    epochs: int = 20
+    batch_size: int = 32
+    model_file: str = "/workspace/LLMBase/MiniChat/MiniChat-1B-pt-v1.pt"
+    save_dir: str = "checkpoints"
+    processed_data_dir: str = "/workspace/datasets/llava-en-zh-2k/BUAADreamer_processed/"
+    text_tokens_path: str = os.path.join(processed_data_dir, "file_0_texttokens.pt")
+    image_embeds_path: str = os.path.join(processed_data_dir, "file_0_image_embeds.pt")
+    assistant_index_path: str = os.path.join(processed_data_dir, "file_0_assistant_indexes.json")
+    seq_length: int = CFG.sq_l
+
+
+
+
+train_CFG = TrainingConfig_local()
+
+
 
 
 
@@ -105,13 +141,13 @@ def train():
 
 
     dataset = VLM_SFT_Dataset(
-    text_tokens_path="/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_0_texttokens.pt",
-    image_embeds_path="/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_0_image_embeds.pt",
-    assistant_index_path="/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_0_assistant_indexes.json",
-    seq_length=2048
+    text_tokens_path=train_CFG.text_tokens_path,
+    image_embeds_path=train_CFG.image_embeds_path,
+    assistant_index_path=train_CFG.assistant_index_path,
+    seq_length=train_CFG.seq_length
 )
 
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    dataloader = DataLoader(dataset, batch_size=train_CFG.batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
 
 
 
@@ -119,10 +155,12 @@ def train():
     model = MiniChat_Vision(CFG=CFG).to(device=device).to(torch.bfloat16).train()
     memory_after = torch.cuda.memory_allocated()
     print(f"total memory use for loading model: {(memory_after - prev_memory)/1e6} Mb, {(memory_after - prev_memory)/1e9} Gb")
-
-    ckp = torch.load("/home/yuxin/models/LLMBase/MiniChat/MiniChat-1B-pt-v1.pt", map_location=device)
-    model.load_state_dict(ckp['model_state_dict'], strict=False)
-    print("Loaded pretrained MiniChat weights into MiniChat_Vision model.")
+    try:
+        ckp = torch.load(train_CFG.model_file, map_location=device)
+        model.load_state_dict(ckp['model_state_dict'], strict=False)
+        print("Loaded pretrained MiniChat weights into MiniChat_Vision model.")
+    except Exception as e:
+        print(f"Failed to load pretrained weights: {e}")
 
     # Log memory usage to wandb
     wandb.log({
@@ -170,12 +208,23 @@ def train():
             step += 1
             print(f"Epoch {epoch + 1}, Step {step}, Loss: {loss.item():.4f}")
 
-            break
-        break
+            # Log training metrics to wandb
+            wandb.log({
+                "train/loss": loss.item(),
+                "train/epoch": epoch + 1,
+                "train/step": step,
+                "learning_rate": optmizer.param_groups[0]['lr']
+            })
             
 
 
-if __name__ == "__main__":
+def main():
+    parser = argparse.ArgumentParser(description="Train MiniChat_Vision Model")
+    parser.add_argument("--config", type=str, default="configs/train_miniChat_Vision.yaml", help="Path to config file")
+    args = parser.parse_args()
     train()
+
+if __name__ == "__main__":
+    main()
 
 

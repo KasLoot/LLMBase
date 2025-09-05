@@ -195,12 +195,7 @@ class Transformer(nn.Module):
         return x
     
 
-def get_image_encoder():
-    ckpt = "/home/yuxin/models/siglip2-large-patch16-256"
-    model = AutoModel.from_pretrained(ckpt, device_map="cuda").eval()
-    processor = AutoProcessor.from_pretrained(ckpt)
 
-    return model, processor
 
 class VisionProjection(nn.Module):
     def __init__(self, CFG: ModelConfig, vision_dim: int = 1024):
