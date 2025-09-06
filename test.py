@@ -13,9 +13,9 @@ def custom_collate_fn(batch):
 
 
 dataset = VLM_SFT_Dataset(
-    text_tokens_path="/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_0_texttokens.pt",
-    image_embeds_path="/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_0_image_embeds.pt",
-    assistant_index_path="/home/yuxin/datasets/BUAADreamer/llava-en-zh-2k/BUAADreamer_processed/file_0_assistant_indexes.json",
+    text_tokens_path="/workspace/datasets/BUAADreamer/llava-en-zh-2k/processed_data/file_0_texttokens.pt",
+    image_embeds_path="/workspace/datasets/BUAADreamer/llava-en-zh-2k/processed_data/file_0_image_embeds.pt",
+    assistant_index_path="/workspace/datasets/BUAADreamer/llava-en-zh-2k/processed_data/file_0_assistant_indexes.json",
     seq_length=2048
 )
 

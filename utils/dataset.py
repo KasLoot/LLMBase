@@ -88,21 +88,22 @@ class VLM_SFT_Dataset(Dataset):
     def __init__(self, text_tokens_path, image_embeds_path, assistant_index_path, seq_length):
         self.seq_length = seq_length
         self.text_tokens = torch.load(text_tokens_path)
+        print(f"self.text_tokens shape: {self.text_tokens.shape}")
         self.image_embeds = torch.load(image_embeds_path)
         self.assistant_indices = json.load(open(assistant_index_path, 'r'))
         assert len(self.text_tokens) == len(self.image_embeds) == len(self.assistant_indices), "All inputs must have the same number of samples."
-        assert self.text_tokens.shape[1] == self.seq_length, f"Text tokens must have sequence length {self.seq_length}."
+        assert self.text_tokens.shape[1] == self.seq_length+1, f"Text tokens must have sequence length {self.seq_length}."
         print(f"Loaded dataset with {len(self.text_tokens)} samples.")
 
     def __len__(self):
         return len(self.text_tokens)
     
     def __getitem__(self, idx):
-        input_token: torch.Tensor = self.text_tokens[idx]
+        input_token: torch.Tensor = self.text_tokens[idx][:-1]
         image_embed: torch.Tensor = self.image_embeds[idx]
         last_assistant_index: list = self.assistant_indices[idx][-1]
 
-        target_token = input_token.detach().clone()
+        target_token = self.text_tokens[idx][1:]
         target_token[:last_assistant_index+1] = 200000
 
         return input_token, image_embed, target_token

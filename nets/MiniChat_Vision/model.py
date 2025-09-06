@@ -218,7 +218,7 @@ class VisionProjection(nn.Module):
         # image = self.vit_processor(image, return_tensors="pt")
         # image = self.vit_model.vision_model(**image).last_hidden_state
         image_emb = self.projection(image_emb)
-        print(f"Image embedding shape: {image_emb.shape}")
+        # print(f"Image embedding shape: {image_emb.shape}")
         return image_emb
 
 

@@ -15,7 +15,7 @@ from PIL import Image
 import argparse
 
 def get_image_encoder():
-    ckpt = "/home/yuxin/models/siglip2-large-patch16-256"
+    ckpt = "/workspace/models/siglip2-large-patch16-256"
     model = AutoModel.from_pretrained(ckpt, device_map="cuda").eval()
     processor = AutoProcessor.from_pretrained(ckpt)
 
@@ -48,15 +48,15 @@ class BUAADreamer():
         dataset_path = os.path.join(self.local_dir, "llava-en-zh-2k/en/")
         print(f"Processing dataset at: {dataset_path}")
         pathlist = Path(dataset_path).rglob('*.parquet')
-        max_text_len = 2048 - 258
+        max_text_len = 2048 - 258 + 1
 
         for f_i, file in enumerate(pathlist):
             print(f"Processing file: {file}")
             data = load_dataset("parquet", data_files=str(file))["train"]
-            print(data[0])
+            # print(data[0])
 
             image_reserved_tokens_tensor = torch.tensor([[200009] + [200011]*256 + [200010]]*len(data), dtype=torch.int32)
-            file_text_tensor = torch.ones((len(data), self.sq_l-258), dtype=torch.int32)*200000
+            file_text_tensor = torch.ones((len(data), self.sq_l-258+1), dtype=torch.int32)*200000
             file_text_tensor = torch.hstack((image_reserved_tokens_tensor, file_text_tensor))
             print(f"File text tensor shape: {file_text_tensor}")
 
@@ -118,9 +118,11 @@ class BUAADreamer():
                 
                 print(f"Filtered out {len(data) - len(valid_indices)} samples due to truncation. Keeping {len(valid_indices)} valid samples.")
 
-                torch.save(file_text_tensor_filtered, f"{self.local_dir}/processed_data/file_{f_i}_texttokens.pt")
-                torch.save(file_image_embeds_tensor_filtered, f"{self.local_dir}/processed_data/file_{f_i}_image_embeds.pt")
-                json.dump(file_assistant_indexes_filtered, open(f"{self.local_dir}/processed_data/file_{f_i}_assistant_indexes.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+                processed_save_dir = f"{self.local_dir}/llava-en-zh-2k/processed_data/"
+                
+                torch.save(file_text_tensor_filtered, f"{processed_save_dir}file_{f_i}_texttokens.pt")
+                torch.save(file_image_embeds_tensor_filtered, f"{processed_save_dir}file_{f_i}_image_embeds.pt")
+                json.dump(file_assistant_indexes_filtered, open(f"{processed_save_dir}file_{f_i}_assistant_indexes.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
             else:
                 print(f"No valid samples found in file {f_i}. All samples were truncated.")
             break
@@ -152,11 +154,12 @@ class BUAADreamer():
 parser = argparse.ArgumentParser(description="Process BUAADreamer datasets.")
 parser.add_argument('--save_dir', type=str, required=True, help='Directory to save processed files', default="/home/yuxin/datasets/BUAADreamer")
 args = parser.parse_args()
-
+print("parsed args")
 # Use the parsed save directory
 save_dir = args.save_dir
 
 vit_model, vit_processor = get_image_encoder()
+print("Got vit model and processor")
 
 allenai = BUAADreamer(local_dir=save_dir, dataset_names=["llava-en-zh-2k"], sq_l=2048, text_tokenizer=get_tokenizer(), vit_model=vit_model, vit_processor=vit_processor)
 allenai.process_llava_en_zh_2k()

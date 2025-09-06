@@ -13,6 +13,8 @@ from tqdm import tqdm
 import argparse
 from dataclasses import dataclass
 
+torch.manual_seed(42)
+
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 CFG = ModelConfig()
@@ -35,9 +37,9 @@ class TrainingConfig_local:
 class TrainingConfig_server:
     learning_rate: float = 1e-4
     epochs: int = 20
-    batch_size: int = 32
-    model_file: str = "/workspace/LLMBase/MiniChat/MiniChat-1B-pt-v1.pt"
-    save_dir: str = "checkpoints"
+    batch_size: int = 16
+    model_file: str = "/workspace/models/MiniChat-1B-pt-v2/MiniChat-1B-pt-v2.pt"
+    save_dir: str = "/workspace/models/MiniChat_Vision-1B-sft"
     processed_data_dir: str = "/workspace/datasets/BUAADreamer/llava-en-zh-2k/processed_data/"
     text_tokens_path: str = os.path.join(processed_data_dir, "file_0_texttokens.pt")
     image_embeds_path: str = os.path.join(processed_data_dir, "file_0_image_embeds.pt")
@@ -47,7 +49,7 @@ class TrainingConfig_server:
 
 
 
-train_CFG = TrainingConfig_local()
+train_CFG = TrainingConfig_server()
 
 
 
@@ -103,7 +105,7 @@ def load_model(model, optimizer, checkpoint_path):
 def train():
     # Initialize wandb
     wandb.init(
-        project="llmbase-training",
+        project="MiniChat_Vision-sft-training",
         config={
             "learning_rate": 1e-4,
             "epochs": 20,
@@ -215,7 +217,9 @@ def train():
                 "train/step": step,
                 "learning_rate": optmizer.param_groups[0]['lr']
             })
-            
+        #save model at the end of each epoch
+        epoch_save_path = os.path.join(save_dir, f"MiniChat_Vision_1B_sft_epoch_{epoch + 1}.pt")
+        save_model(model, optmizer, epoch + 1, epoch_loss / batch_count, epoch_save_path)   
 
 
 def main():
