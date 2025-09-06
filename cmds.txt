@@ -2,7 +2,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 git clone https://github.com/KasLoot/LLMBase.git
 
-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
+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
 
 
 curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash

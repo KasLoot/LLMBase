@@ -38,7 +38,7 @@ class TrainingConfig_server:
     batch_size: int = 32
     model_file: str = "/workspace/LLMBase/MiniChat/MiniChat-1B-pt-v1.pt"
     save_dir: str = "checkpoints"
-    processed_data_dir: str = "/workspace/datasets/llava-en-zh-2k/BUAADreamer_processed/"
+    processed_data_dir: str = "/workspace/datasets/BUAADreamer/llava-en-zh-2k/processed_data/"
     text_tokens_path: str = os.path.join(processed_data_dir, "file_0_texttokens.pt")
     image_embeds_path: str = os.path.join(processed_data_dir, "file_0_image_embeds.pt")
     assistant_index_path: str = os.path.join(processed_data_dir, "file_0_assistant_indexes.json")
