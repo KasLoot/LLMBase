@@ -52,19 +52,12 @@ class TrainingConfig_server:
 train_CFG = TrainingConfig_server()
 
 
-
-
-
-def custom_collate_fn(batch):
-    """Custom collate function to handle variable-length assistant_indexes"""
-    text_tokens = torch.stack([item[0] for item in batch])
-    image_embeds = torch.stack([item[1] for item in batch])
-    assistant_indexes = [item[2] for item in batch]  # Keep as list of lists
-    return text_tokens, image_embeds, assistant_indexes
-
-
-
-
+# def custom_collate_fn(batch):
+#     """Custom collate function to handle variable-length assistant_indexes"""
+#     text_tokens = torch.stack([item[0] for item in batch])
+#     image_embeds = torch.stack([item[1] for item in batch])
+#     assistant_indexes = [item[2] for item in batch]  # Keep as list of lists
+#     return text_tokens, image_embeds, assistant_indexes
 
 
 
