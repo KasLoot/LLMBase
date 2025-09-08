@@ -15,7 +15,7 @@ from PIL import Image
 import argparse
 
 def get_image_encoder():
-    ckpt = "/workspace/models/siglip2-large-patch16-256"
+    ckpt = "/home/yuxin/models/siglip2-large-patch16-256"
     model = AutoModel.from_pretrained(ckpt, device_map="cuda").eval()
     processor = AutoProcessor.from_pretrained(ckpt)
 
@@ -152,7 +152,7 @@ class BUAADreamer():
 
 # Argument parser setup
 parser = argparse.ArgumentParser(description="Process BUAADreamer datasets.")
-parser.add_argument('--save_dir', type=str, required=True, help='Directory to save processed files', default="/home/yuxin/datasets/BUAADreamer")
+parser.add_argument('--save_dir', type=str, required=False, help='Directory to save processed files', default="/home/yuxin/datasets/BUAADreamer")
 args = parser.parse_args()
 print("parsed args")
 # Use the parsed save directory
