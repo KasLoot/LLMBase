@@ -187,7 +187,7 @@ def main(rank: int, world_size: int):
 
 
 if __name__ == "__main__":
-    wandb.login(key="9c5a4f0ff5bbd5c1ac287e84272b09e4dd0e023a")
+    wandb.login()
     world_size = torch.cuda.device_count()
     print(f"Using {world_size} GPUs for training")
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)

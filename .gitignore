@@ -15,3 +15,7 @@ checkpoints/
 # OS artifacts
 **/.DS_Store
 .DS_Store
+
+# Command files
+cmds.txt
+cmds_MiniChat_Vision_SFT.txt

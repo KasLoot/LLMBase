@@ -129,11 +129,6 @@ def train():
         "save_directory": save_dir
     })
     
-    # Initialize best loss tracker
-    best_loss = float('inf')
-
-
-
 
     dataset = VLM_SFT_Dataset(
     text_tokens_path=train_CFG.text_tokens_path,
