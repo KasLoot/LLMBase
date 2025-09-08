@@ -58,7 +58,7 @@ class BUAADreamer():
             image_reserved_tokens_tensor = torch.tensor([[200009] + [200011]*256 + [200010]]*len(data), dtype=torch.int32)
             file_text_tensor = torch.ones((len(data), self.sq_l-258+1), dtype=torch.int32)*200000
             file_text_tensor = torch.hstack((image_reserved_tokens_tensor, file_text_tensor))
-            print(f"File text tensor shape: {file_text_tensor}")
+            print(f"File text tensor shape: {file_text_tensor.shape}")
 
             file_image_embeds_tensor = torch.ones((len(data), 256, 1024), dtype=torch.bfloat16)
 
