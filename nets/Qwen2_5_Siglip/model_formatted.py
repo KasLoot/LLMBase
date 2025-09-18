@@ -350,6 +350,8 @@ def main():
     # Create complete model, train_type="full" or "projector_only"
     model = LLaVAModel(vision_tower, projector, language_model, train_type=config.train_type).to(torch.bfloat16).to(config.device)
 
+    torch.compile(model)
+
     # Print model information
     print_model_info(model)
     
