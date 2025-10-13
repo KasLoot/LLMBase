@@ -32,8 +32,8 @@ def sample(logits: torch.Tensor, temperature: float) -> torch.Tensor:
         return torch.multinomial(probs, num_samples=1)
 
 
-def inference(temperature: float = 0.8):
-    checkpoint = torch.load("/Users/liuyuxin/Documents/models/MiniChat/MiniChat-1B-pt/checkpoint_epoch_1.pt", weights_only=False, map_location=device)
+def inference(temperature: float = 0.5):
+    checkpoint = torch.load("/Users/liuyuxin/Documents/models/MiniChat/MiniChat-1B-pt/MiniChat-1B-pt-v1.pt", weights_only=False, map_location=device)
     model = MiniChat(CFG=CFG, use_cache=True).to(device=device)
     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
     model.requires_grad_(False)
