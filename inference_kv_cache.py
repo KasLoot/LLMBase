@@ -32,12 +32,17 @@ def sample(logits: torch.Tensor, temperature: float) -> torch.Tensor:
         return torch.multinomial(probs, num_samples=1)
 
 
-def inference(temperature: float = 0.5):
-    checkpoint = torch.load("/Users/liuyuxin/Documents/models/MiniChat/MiniChat-1B-pt/MiniChat-1B-pt-v1.pt", weights_only=False, map_location=device)
-    model = MiniChat(CFG=CFG, use_cache=True).to(device=device)
-    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-    model.requires_grad_(False)
-    model.eval()
+def inference(temperature: float = 0.8):
+    try:
+        checkpoint = torch.load("/workspace/models/MiniChat/MiniChat-1B-pt-v2.pt", weights_only=False, map_location=device)
+        model = MiniChat(CFG=CFG, use_cache=True).to(device=device)
+        model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+        model.requires_grad_(False)
+        model.eval()
+    except Exception as e:
+        print("Checkpoint load failed, running with random weights.", e)
+        model = MiniChat(CFG=CFG, use_cache=True).to(device=device)
+        model.eval()
 
     with open("prompt.txt", "r") as f:
         demo_text = [f.read()]
@@ -77,5 +82,6 @@ def inference(temperature: float = 0.5):
 
 
 
-
+torch.cuda.empty_cache()
 inference()
+torch.cuda.empty_cache()
